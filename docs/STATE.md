@@ -16,7 +16,7 @@
 
 | | |
 |---|---|
-| **Last updated** | `2026-08-12` (road directions + steps sheet + external navigation; Android key headers) |
+| **Last updated** | `2026-08-12` (backend JWT login + Firestore GPS writer) |
 | **Project** | DishFlow Delivery — white-label Flutter **driver** app (Phase 4). One codebase, one brand per build. |
 | **Version control** | ✅ git — `main` → `origin` = [`YasserIbrahem1997/delevary-app-dishflow`](https://github.com/YasserIbrahem1997/delevary-app-dishflow). Owner's convention (same as `../pos_test`): work on `main`, push fast-forward, never force-push. |
 | **Analyzer** | ✅ `flutter analyze` clean — **0 issues**, whole project (2026-08-12) |
@@ -44,8 +44,8 @@
   - **The Routes call never actually succeeds today — by decision, not by bug.** Two gates were found and only the first is solved: (1) the Android app restriction, now handled by sending `X-Android-Package` / `X-Android-Cert` from [`AndroidApiKeyHeaders`](../lib/core/utils/android_app_identity.dart); (2) **billing is not enabled** on the key's project `970110791123`, and the owner chose not to enable it. So every run takes the labelled straight-line fallback, and **Navigate → Google Maps** is the real directions feature. An unrestricted key via `--dart-define=MAPS_API_KEY=…` remains a valid alternative if it belongs to a billed project.
   - **Fallback is intentional and visible**: no Routes answer → straight line, distance = great-circle × **1.35**, ETA at **25 km/h**, polyline drawn `geodesic` + dashed, and the ETA card shows an "approx." tag. `isEstimate` is the flag; never present an estimate as a real route.
   - Polyline decoding is hand-written in [`order_route_resolver.dart`](../lib/features/orders/domain/utils/order_route_resolver.dart) (no extra package). Locked by tests against Google's documented example string.
-- **Auth is TEMP and insecure by decision** (see `README.md`): driver username/password live in plaintext in Firestore `drivers`; the app signs in **Anonymously** to Firebase and then matches the `drivers` doc. Anonymous Auth must be enabled per Firebase project.
-- **`TrackingRepository` is still a stub** ([`stub_tracking_repository.dart`](../lib/features/tracking/data/repositories/stub_tracking_repository.dart)) — `start()`/`stop()` only flip a bool. Nothing is written to RTDB `driver_locations/{uid}` yet, despite `AppConfig.gpsInterval` existing. The live GPS in `DeliveryMapView` is **local to the map**, not the broadcast tracker.
+- **Auth:** `POST /drivers/login` against DishFlow (`AppConfig.baseUrl` + restaurant key) returns a JWT (`type: driver_access`) plus `firebaseDriverId`. The app still signs in **Anonymously** to Firebase so Firestore `drivers/{firebaseDriverId}/orders` works. `DriverEntity.id` **is** that Firestore document id (not the Postgres cuid). Old `firestore_driver` tokens are treated as logged out. Anonymous Auth must stay enabled per Firebase project.
+- **`TrackingRepository`** is [`FirestoreTrackingRepository`](../lib/features/tracking/data/repositories/firestore_tracking_repository.dart) — `start()` writes `driver_locations/{driverUid}` `{ lat, lng, heading, updatedAt }` on the GPS interval. The live GPS in `DeliveryMapView` is still local to the map.
 - **Branch ≠ brand, currently.** There are **14** Firebase branch configs in `lib/firebase_configs/` (`kDevFirebaseClients` in [`firebase_project_selector.dart`](../lib/core/dev/firebase_project_selector.dart)) but only **3** `deploy_configs/` brands (`balkans`, `cairo_kaiser`, `dev`), and only 2 of those ship an `icon.png`. A branch with no brand folder keeps whatever `brand_assets/active/icon.png` currently holds.
 
 ---
@@ -57,6 +57,8 @@ Legend: ✅ done & verified · 🟡 in progress / unverified · 🔴 blocked · 
 
 | What | Status | Notes |
 |---|---|---|
+| **Backend JWT login + anonymous Firebase** | 🟡 | `POST /drivers/login`; session stores JWT; `firebaseDriverId` is the orders/tracking uid. Firestore username/password scan removed. |
+| **GPS writer to `driver_locations/{uid}`** | 🟡 | `FirestoreTrackingRepository` wired in DI. Not yet verified on device. |
 | **Directions: turn-by-turn steps sheet + navigate hand-off** | ✅ `d694e35` | Route request now asks for `routes.legs.steps.*` too → `RouteStep` list (instruction, maneuver, distance, duration, start). New [`RouteDirectionsSheet`](../lib/features/orders/presentation/widgets/route_directions_sheet.dart) lists the maneuvers with direction arrows + an "arrive" row; ETA card gained a steps button (only when a real route exists) and a **Navigate** button that hands off to Google Maps (`google.navigation:` → web fallback). **Navigate is the shipping path** — it costs nothing and needs no key. Steps/road-polyline stay dormant until billing is enabled (see Blocked). |
 | **Android-restricted key can now authorize the Routes call** | ✅ | New `MainActivity` MethodChannel (`…/app_identity`) returns the package name + signing-cert SHA-1; [`AndroidApiKeyHeaders`](../lib/core/utils/android_app_identity.dart) turns them into `X-Android-Package` / `X-Android-Cert` on the Routes request. Proven to clear the app restriction (403 changed from `API_KEY_ANDROID_APP_BLOCKED` → `API_KEY_SERVICE_BLOCKED`). |
 | **Map: route line + ETA between driver and customer** | ✅ | New [`order_route_resolver.dart`](../lib/features/orders/domain/utils/order_route_resolver.dart) (`DeliveryRoute` = points + meters + duration + `isEstimate`) via **Routes API**, hand-written polyline decoder, haversine. `DeliveryMapView` draws the `Polyline` in the brand color and an ETA card ("12 min · 4.3 km · للعميل"). Live `getPositionStream` (25 m) with a 150 m / 45 s reroute throttle. **Shows the labelled estimate, not a road route** — billing is off on the key's project and the owner chose to keep it that way; see Blocked + Decisions 2026-08-12. |
@@ -81,9 +83,9 @@ Legend: ✅ done & verified · 🟡 in progress / unverified · 🔴 blocked · 
 ## Next up ⬜
 1. Run on `SM A556E` and eyeball: splash animation, both marker icons, polyline, ETA card, Arabic layout (the ETA card sits under the "approximate location" banner).
 2. Verify the **Navigate** button on the device: it must open Google Maps with driving navigation straight to the customer (`google.navigation:`), and fall back to the browser if Maps is absent. This is now the primary directions feature — it is the one thing here that has never been tapped on a real phone.
-3. Replace `StubTrackingRepository` with the real Geolocator → RTDB `driver_locations/{uid}` writer (`AppConfig.gpsInterval` = 5 s). The map's own position stream is separate — decide whether to share one stream.
+3. ~~Replace `StubTrackingRepository` with the real Geolocator → RTDB `driver_locations/{uid}` writer (`AppConfig.gpsInterval` = 5 s).~~ **Done 2026-08-12** — Firestore `driver_locations/{uid}` writer. Still needs a device check.
 4. Add `deploy_configs/<branch>/icon.png` for the remaining 12 branches; consider driving `deploy_configs` off the same keys as `kDevFirebaseClients` so brand and Firebase branch stop being two lists.
-5. Replace the plaintext-password auth (README "accepted risk") with Firebase Auth / a Cloud Function.
+5. ~~Replace the plaintext-password auth (README "accepted risk") with Firebase Auth / a Cloud Function.~~ **Done 2026-08-12** — DishFlow `POST /drivers/login` JWT. Anonymous Firebase Auth remains for Firestore rules.
 6. Decide whether `AppColors.brandPrimary`'s `0xFFFF6B35` sentinel should go, so the Balkans brand can actually be orange.
 
 ---
@@ -92,6 +94,8 @@ Legend: ✅ done & verified · 🟡 in progress / unverified · 🔴 blocked · 
 
 | Date | Note | Why |
 |---|---|---|
+| 2026-08-12 | **Driver login is DishFlow JWT, not a Firestore password scan.** `POST /drivers/login` + restaurant key; anonymous Firebase Auth stays so `drivers/{firebaseDriverId}/orders` still matches POS assignment. Tracking uid = Firestore driver doc id. | Owner asked POS Firebase + backend DB + delivery app JWT in one flow. |
+| 2026-08-12 | **GPS broadcast writes Firestore `driver_locations/{uid}`** (not RTDB). Ecommerce tracking already listens there. | Customer app order-track map reads that collection. |
 | 2026-08-12 | **The Android app restriction is solvable in code; the API restriction is not.** Sending `X-Android-Package` + `X-Android-Cert` (package name + signing SHA-1, read over a MethodChannel — the same headers the Maps SDK sends for itself) moved the Routes API response from `403 API_KEY_ANDROID_APP_BLOCKED` to `403 API_KEY_SERVICE_BLOCKED`. That second error is a **different gate**: the key's allowed-API list. So the manifest key *can* be used from Dio after all — it just needs Routes API ticked in the Console. ~~Needs a new unrestricted key.~~ (superseded — an unrestricted key still works as an alternative). Verified by curl with the real debug SHA-1 `3BCA9EAB…9EBF` and package `org.codesolution.dishflow_delivery`. | Owner wants the real road route, not the straight line; a new key would have been avoidable work. |
 | 2026-08-12 | **In-app turn-by-turn is out of scope; the app shows the route + the step list and hands voice guidance to Google Maps.** `Navigate` fires `google.navigation:q=lat,lng&mode=d`, falling back to `https://www.google.com/maps/dir/?api=1&…&dir_action=navigate`. Rebuilding live voice navigation (re-routing, lane guidance, speed limits) inside the app is a product of its own and would still need the Navigation SDK, which is separately licensed. | Owner asked for "الخط يمشي إزاي على اللوكيشن" — road path + maneuvers, which this gives, plus real navigation one tap away. |
 | 2026-08-12 | **The steps button only appears for a real route** (`DeliveryRoute.hasSteps`); an estimate has no maneuvers, and the sheet says so rather than showing an empty list. `Navigate` is always available — it does not depend on our routing at all. | A directions button that opens an empty sheet reads as a bug. |

@@ -1,19 +1,21 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/constants/storage_keys.dart';
 import '../../domain/entities/driver_entity.dart';
 
-/// TEMP insecure login: match POS `drivers.username` + `drivers.password`.
-/// Requires Firebase Anonymous Auth enabled (to satisfy Firestore rules).
+/// Backend JWT login + Firebase Anonymous Auth (for `drivers/{uid}/orders`).
 class AuthRemoteDataSource {
-  AuthRemoteDataSource(this._storage);
+  AuthRemoteDataSource(this._storage, this._dioClient);
 
   final FlutterSecureStorage _storage;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final DioClient _dioClient;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Dio get _dio => _dioClient.client;
 
   Future<void> _ensureAnonAuth() async {
     if (_auth.currentUser != null) return;
@@ -31,32 +33,23 @@ class AuthRemoteDataSource {
     }
   }
 
-  String? _phoneFrom(Map<String, dynamic> data) {
-    final raw = data['phone'] ??
-        data['mobile'] ??
-        data['phoneNumber'] ??
-        data['phone_number'] ??
-        data['driver_phone'];
-    final s = raw?.toString().trim();
-    if (s == null || s.isEmpty) return null;
-    return s;
-  }
-
-  DriverEntity _entityFromDoc(
-    String id,
-    Map<String, dynamic> data, {
-    String? fallbackUsername,
-  }) {
+  DriverEntity _entityFromApi(Map<String, dynamic> data) {
+    final firebaseId = (data['firebaseDriverId'] ?? '').toString().trim();
+    final id = firebaseId.isNotEmpty ? firebaseId : (data['id'] ?? '').toString();
     return DriverEntity(
       id: id,
-      name: (data['name'] ?? fallbackUsername ?? id).toString(),
-      username: (data['username'] ?? fallbackUsername ?? '').toString(),
-      phone: _phoneFrom(data),
-      branchId: data['branchId']?.toString() ?? data['branch_id']?.toString(),
+      name: (data['name'] ?? data['username'] ?? id).toString(),
+      username: (data['username'] ?? '').toString(),
+      phone: () {
+        final raw = data['phone']?.toString().trim();
+        if (raw == null || raw.isEmpty) return null;
+        return raw;
+      }(),
+      branchId: data['branchId']?.toString(),
     );
   }
 
-  Future<void> _persist(DriverEntity driver) async {
+  Future<void> _persist(DriverEntity driver, String accessToken) async {
     await _storage.write(key: StorageKeys.driverId, value: driver.id);
     await _storage.write(key: StorageKeys.driverName, value: driver.name);
     await _storage.write(
@@ -67,7 +60,29 @@ class AuthRemoteDataSource {
       key: StorageKeys.driverPhone,
       value: driver.phone ?? '',
     );
-    await _storage.write(key: StorageKeys.authToken, value: 'firestore_driver');
+    if (driver.branchId != null && driver.branchId!.isNotEmpty) {
+      await _storage.write(key: StorageKeys.branchId, value: driver.branchId);
+    }
+    await _storage.write(key: StorageKeys.authToken, value: accessToken);
+  }
+
+  Exception _mapDio(DioException e) {
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return const NetworkException();
+    }
+    final status = e.response?.statusCode;
+    final body = e.response?.data;
+    final message = body is Map<String, dynamic>
+        ? (body['error'] is Map<String, dynamic>
+            ? body['error']['message'] as String?
+            : body['message'] as String?)
+        : null;
+    if (status == 401) {
+      return AuthException(message ?? 'Invalid username or password');
+    }
+    return ServerException(message ?? 'Request failed. Please try again.');
   }
 
   Future<DriverEntity> login({
@@ -81,45 +96,33 @@ class AuthRemoteDataSource {
 
     try {
       await _ensureAnonAuth();
-
-      final snap = await _db.collection('drivers').get();
-      QueryDocumentSnapshot<Map<String, dynamic>>? match;
-      for (final doc in snap.docs) {
-        final data = doc.data();
-        final u = (data['username'] ?? '').toString().trim();
-        final p = (data['password'] ?? '').toString();
-        final active = data['isActive'] != false;
-        if (!active) continue;
-        if (u == userKey && p == password) {
-          match = doc;
-          break;
-        }
-      }
-
-      if (match == null) {
-        throw AuthException(
-          'Invalid username or password '
-          '(checked ${snap.docs.length} drivers on this Firebase project).',
-        );
-      }
-
-      final driver = _entityFromDoc(
-        match.id,
-        match.data(),
-        fallbackUsername: userKey,
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/drivers/login',
+        data: {'username': userKey, 'password': password},
       );
-      await _persist(driver);
+      final data = res.data?['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const ServerException('Login failed. Please try again.');
+      }
+      final token = (data['accessToken'] ?? '').toString();
+      final driverJson = data['driver'];
+      if (token.isEmpty || driverJson is! Map<String, dynamic>) {
+        throw const ServerException('Login failed. Please try again.');
+      }
+      final driver = _entityFromApi(driverJson);
+      if (driver.id.isEmpty) {
+        throw const ServerException('Driver profile is missing a Firebase id.');
+      }
+      await _persist(driver, token);
       return driver;
     } on AuthException {
       rethrow;
-    } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') {
-        throw const AuthException(
-          'Firestore permission-denied on drivers. '
-          'Deploy rules allowing authenticated read, or sign-in failed.',
-        );
-      }
-      throw ServerException('${e.code}: ${e.message ?? 'Firestore error'}');
+    } on ServerException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } on DioException catch (e) {
+      throw _mapDio(e);
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -128,7 +131,11 @@ class AuthRemoteDataSource {
   Future<DriverEntity?> readCachedDriver() async {
     final id = await _storage.read(key: StorageKeys.driverId);
     final token = await _storage.read(key: StorageKeys.authToken);
-    if (id == null || id.isEmpty || token == null || token.isEmpty) {
+    if (id == null ||
+        id.isEmpty ||
+        token == null ||
+        token.isEmpty ||
+        token == 'firestore_driver') {
       return null;
     }
     try {
@@ -137,12 +144,12 @@ class AuthRemoteDataSource {
       return null;
     }
 
-    // Prefer live Firestore profile so phone/username stay fresh.
     try {
-      final doc = await _db.collection('drivers').doc(id).get();
-      if (doc.exists && doc.data() != null) {
-        final driver = _entityFromDoc(id, doc.data()!);
-        await _persist(driver);
+      final res = await _dio.get<Map<String, dynamic>>('/drivers/me');
+      final data = res.data?['data'];
+      if (data is Map<String, dynamic>) {
+        final driver = _entityFromApi(data);
+        await _persist(driver, token);
         return driver;
       }
     } catch (_) {

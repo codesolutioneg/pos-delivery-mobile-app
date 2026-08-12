@@ -11,7 +11,7 @@ import '../../features/orders/data/repositories/firestore_orders_repository.dart
 import '../../features/orders/domain/repositories/orders_repository.dart';
 import '../../features/orders/presentation/cubit/current_order_cubit.dart';
 import '../../features/orders/presentation/cubit/orders_list_cubit.dart';
-import '../../features/tracking/data/repositories/stub_tracking_repository.dart';
+import '../../features/tracking/data/repositories/firestore_tracking_repository.dart';
 import '../../features/tracking/domain/repositories/tracking_repository.dart';
 import '../l10n/locale_cubit.dart';
 import '../network/dio_client.dart';
@@ -29,7 +29,7 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton<DioClient>(() => DioClient(sl()));
 
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSource(sl()),
+    () => AuthRemoteDataSource(sl(), sl()),
   );
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(sl()),
@@ -43,5 +43,5 @@ Future<void> configureDependencies() async {
   sl.registerFactory(() => CurrentOrderCubit(sl()));
   sl.registerFactory(() => OrdersListCubit(sl()));
 
-  sl.registerLazySingleton<TrackingRepository>(() => StubTrackingRepository());
+  sl.registerLazySingleton<TrackingRepository>(() => FirestoreTrackingRepository());
 }
