@@ -200,19 +200,25 @@ class FirestoreOrdersRepository implements OrdersRepository {
       }
       await _orders(driverUid).doc(orderId).set(data, SetOptions(merge: true));
 
-      // Mirror onto sales so POS delivery board reflects driver actions.
-      // Doc id under drivers/.../orders is typically sale_firebase_id.
+      // Mirror onto sales so the POS delivery board reflects driver actions.
+      // Doc id under drivers/.../orders is the sale doc id.
+      //
+      // MUST be update(), never set(merge:true): a driver can be assigned an
+      // order while it is still suspended in the POS, i.e. before any sale
+      // exists. set(merge:true) would CREATE `sales/{id}` as a stub holding
+      // only a delivery_status — and the POS collision guard
+      // (SaleDocId.isSameOrder) reads that stub as "a different order",
+      // so checkout would then file the real sale under a collision-safe id.
+      // update() throws on a missing doc and is swallowed below, which is
+      // exactly the wanted behaviour: touch the sale only once it is real.
       try {
-        await _db.collection('sales').doc(orderId).set(
-          {
-            'delivery_status': status,
-            'updatedAt': now,
-            if (status == 'delivered') 'driverDeliveredAt': now,
-          },
-          SetOptions(merge: true),
-        );
+        await _db.collection('sales').doc(orderId).update({
+          'delivery_status': status,
+          'updatedAt': now,
+          if (status == 'delivered') 'driverDeliveredAt': now,
+        });
       } catch (_) {
-        // Non-fatal if sales doc id differs or rules block write.
+        // Non-fatal: no sale yet, different doc id, or rules block the write.
       }
 
       return const Right(null);
