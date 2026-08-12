@@ -619,6 +619,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'approx.'**
   String get mapRouteEstimateTag;
+
+  /// No description provided for @mapDirectionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Directions'**
+  String get mapDirectionsTitle;
+
+  /// No description provided for @mapDirectionsSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} steps'**
+  String mapDirectionsSteps(int count);
+
+  /// No description provided for @mapDirectionsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Step-by-step directions need a real route from Google — only the estimate is available right now.'**
+  String get mapDirectionsUnavailable;
+
+  /// No description provided for @mapDirectionsArrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrive at the customer'**
+  String get mapDirectionsArrive;
+
+  /// No description provided for @mapNavigate.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate'**
+  String get mapNavigate;
+
+  /// No description provided for @mapNavigateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Google Maps for navigation.'**
+  String get mapNavigateFailed;
 }
 
 class _AppLocalizationsDelegate

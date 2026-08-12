@@ -4,6 +4,29 @@ import 'package:dio/dio.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/utils/android_app_identity.dart';
+
+/// One maneuver of the drive: "Turn right onto Ahmed Orabi St.".
+class RouteStep {
+  const RouteStep({
+    required this.instruction,
+    required this.distanceMeters,
+    required this.duration,
+    required this.maneuver,
+    required this.start,
+  });
+
+  final String instruction;
+  final int distanceMeters;
+  final Duration duration;
+
+  /// Routes API maneuver enum, e.g. `TURN_RIGHT`, `ROUNDABOUT_LEFT`. May be
+  /// empty when the API omits it.
+  final String maneuver;
+
+  /// Where this step begins — used to highlight the leg on the map.
+  final LatLng start;
+}
 
 /// Driving route between the driver and the customer, with its ETA.
 class DeliveryRoute {
@@ -12,6 +35,7 @@ class DeliveryRoute {
     required this.distanceMeters,
     required this.duration,
     required this.isEstimate,
+    this.steps = const <RouteStep>[],
   });
 
   /// Polyline to draw; at minimum the two endpoints.
@@ -19,9 +43,14 @@ class DeliveryRoute {
   final int distanceMeters;
   final Duration duration;
 
-  /// True when the Directions API was unavailable and this is a straight-line
+  /// True when the Routes API was unavailable and this is a straight-line
   /// estimate instead of a real road route.
   final bool isEstimate;
+
+  /// Turn-by-turn maneuvers. Empty for an estimate — a straight line has none.
+  final List<RouteStep> steps;
+
+  bool get hasSteps => steps.isNotEmpty;
 }
 
 /// Resolves the driving route + ETA from the driver to the customer.
@@ -73,7 +102,13 @@ abstract final class OrderRouteResolver {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': AppConfig.mapsApiKey,
             'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,'
-                'routes.polyline.encodedPolyline',
+                'routes.polyline.encodedPolyline,'
+                'routes.legs.steps.navigationInstruction,'
+                'routes.legs.steps.distanceMeters,'
+                'routes.legs.steps.staticDuration,'
+                'routes.legs.steps.startLocation',
+            // Lets an Android-restricted key authorize this web-service call.
+            ...await AndroidApiKeyHeaders.headers(),
           },
           // Non-2xx means "no route" here, not a crash.
           validateStatus: (_) => true,
@@ -119,6 +154,7 @@ abstract final class OrderRouteResolver {
         distanceMeters: meters,
         duration: duration,
         isEstimate: false,
+        steps: parseSteps(route['legs'] as List<dynamic>?),
       );
     } on DioException {
       return null;
@@ -127,6 +163,57 @@ abstract final class OrderRouteResolver {
     } on TypeError {
       return null;
     }
+  }
+
+  /// Flattens `routes.legs[].steps[]` into the driver-facing maneuver list.
+  ///
+  /// Steps with no instruction text (the API emits a few) are dropped: an empty
+  /// row in the directions sheet tells the driver nothing.
+  static List<RouteStep> parseSteps(List<dynamic>? legs) {
+    if (legs == null || legs.isEmpty) {
+      return const <RouteStep>[];
+    }
+
+    final List<RouteStep> steps = <RouteStep>[];
+    for (final dynamic leg in legs) {
+      if (leg is! Map<String, dynamic>) {
+        continue;
+      }
+      final List<dynamic>? rawSteps = leg['steps'] as List<dynamic>?;
+      if (rawSteps == null) {
+        continue;
+      }
+
+      for (final dynamic step in rawSteps) {
+        if (step is! Map<String, dynamic>) {
+          continue;
+        }
+        final Map<String, dynamic>? nav =
+            step['navigationInstruction'] as Map<String, dynamic>?;
+        final String instruction = (nav?['instructions'] as String?)?.trim() ?? '';
+        if (instruction.isEmpty) {
+          continue;
+        }
+
+        final Map<String, dynamic>? startLatLng =
+            (step['startLocation'] as Map<String, dynamic>?)?['latLng']
+                as Map<String, dynamic>?;
+        final double? lat = (startLatLng?['latitude'] as num?)?.toDouble();
+        final double? lng = (startLatLng?['longitude'] as num?)?.toDouble();
+
+        steps.add(
+          RouteStep(
+            instruction: instruction,
+            distanceMeters: (step['distanceMeters'] as num?)?.round() ?? 0,
+            duration: _parseDuration(step['staticDuration'] as String?) ??
+                Duration.zero,
+            maneuver: (nav?['maneuver'] as String?) ?? '',
+            start: LatLng(lat ?? 0, lng ?? 0),
+          ),
+        );
+      }
+    }
+    return steps;
   }
 
   static Map<String, dynamic> _waypoint(LatLng point) => <String, dynamic>{

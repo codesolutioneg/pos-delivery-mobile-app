@@ -31,6 +31,80 @@ void main() {
     });
   });
 
+  group('parseSteps', () {
+    test('flattens legs → steps with instruction, distance, duration', () {
+      final steps = OrderRouteResolver.parseSteps(<dynamic>[
+        <String, dynamic>{
+          'steps': <dynamic>[
+            <String, dynamic>{
+              'navigationInstruction': <String, dynamic>{
+                'instructions': 'Head north on Tahrir St.',
+                'maneuver': 'DEPART',
+              },
+              'distanceMeters': 420,
+              'staticDuration': '95s',
+              'startLocation': <String, dynamic>{
+                'latLng': <String, dynamic>{
+                  'latitude': 30.0444,
+                  'longitude': 31.2357,
+                },
+              },
+            },
+            <String, dynamic>{
+              'navigationInstruction': <String, dynamic>{
+                'instructions': 'Turn right onto Ramses St.',
+                'maneuver': 'TURN_RIGHT',
+              },
+              'distanceMeters': 1300,
+              'staticDuration': '240s',
+            },
+          ],
+        },
+      ]);
+
+      expect(steps, hasLength(2));
+      expect(steps[0].instruction, 'Head north on Tahrir St.');
+      expect(steps[0].maneuver, 'DEPART');
+      expect(steps[0].distanceMeters, 420);
+      expect(steps[0].duration, const Duration(seconds: 95));
+      expect(steps[0].start.latitude, closeTo(30.0444, 0.00001));
+      expect(steps[1].maneuver, 'TURN_RIGHT');
+      // Missing startLocation must not throw; it degrades to (0, 0).
+      expect(steps[1].start.latitude, 0);
+    });
+
+    test('drops steps with no instruction text', () {
+      final steps = OrderRouteResolver.parseSteps(<dynamic>[
+        <String, dynamic>{
+          'steps': <dynamic>[
+            <String, dynamic>{
+              'navigationInstruction': <String, dynamic>{'instructions': '  '},
+            },
+            <String, dynamic>{'distanceMeters': 10},
+            <String, dynamic>{
+              'navigationInstruction': <String, dynamic>{
+                'instructions': 'Continue straight',
+              },
+            },
+          ],
+        },
+      ]);
+
+      expect(steps, hasLength(1));
+      expect(steps.single.instruction, 'Continue straight');
+    });
+
+    test('returns empty for null / empty / malformed legs', () {
+      expect(OrderRouteResolver.parseSteps(null), isEmpty);
+      expect(OrderRouteResolver.parseSteps(<dynamic>[]), isEmpty);
+      expect(OrderRouteResolver.parseSteps(<dynamic>['nonsense']), isEmpty);
+      expect(
+        OrderRouteResolver.parseSteps(<dynamic>[<String, dynamic>{}]),
+        isEmpty,
+      );
+    });
+  });
+
   group('distanceBetween', () {
     test('matches a known Cairo distance within 1%', () {
       // Tahrir Square → Giza Pyramids: ~7.25 km north-south and ~9.77 km

@@ -137,5 +137,16 @@
       "meters": { "type": "int" }
     }
   },
-  "mapRouteEstimateTag": "approx."
+  "mapRouteEstimateTag": "approx.",
+  "mapDirectionsTitle": "Directions",
+  "mapDirectionsSteps": "{count} steps",
+  "@mapDirectionsSteps": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mapDirectionsUnavailable": "Step-by-step directions need a real route from Google — only the estimate is available right now.",
+  "mapDirectionsArrive": "Arrive at the customer",
+  "mapNavigate": "Navigate",
+  "mapNavigateFailed": "Could not open Google Maps for navigation."
 }

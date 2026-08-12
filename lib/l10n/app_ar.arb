@@ -137,5 +137,16 @@
       "meters": { "type": "int" }
     }
   },
-  "mapRouteEstimateTag": "تقريبي"
+  "mapRouteEstimateTag": "تقريبي",
+  "mapDirectionsTitle": "خطوات الطريق",
+  "mapDirectionsSteps": "{count} خطوة",
+  "@mapDirectionsSteps": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mapDirectionsUnavailable": "خطوات الطريق محتاجة مسار حقيقي من جوجل — المتاح حالياً تقدير تقريبي فقط.",
+  "mapDirectionsArrive": "الوصول إلى العميل",
+  "mapNavigate": "ابدأ التوجيه",
+  "mapNavigateFailed": "تعذّر فتح خرائط جوجل للتوجيه."
 }

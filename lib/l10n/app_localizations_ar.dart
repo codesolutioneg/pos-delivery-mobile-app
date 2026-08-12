@@ -293,4 +293,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get mapRouteEstimateTag => 'تقريبي';
+
+  @override
+  String get mapDirectionsTitle => 'خطوات الطريق';
+
+  @override
+  String mapDirectionsSteps(int count) {
+    return '$count خطوة';
+  }
+
+  @override
+  String get mapDirectionsUnavailable =>
+      'خطوات الطريق محتاجة مسار حقيقي من جوجل — المتاح حالياً تقدير تقريبي فقط.';
+
+  @override
+  String get mapDirectionsArrive => 'الوصول إلى العميل';
+
+  @override
+  String get mapNavigate => 'ابدأ التوجيه';
+
+  @override
+  String get mapNavigateFailed => 'تعذّر فتح خرائط جوجل للتوجيه.';
 }

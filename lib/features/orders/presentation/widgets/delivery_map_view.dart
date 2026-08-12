@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dishflow_delivery/core/l10n/l10n_x.dart';
 import 'package:dishflow_delivery/core/theme/app_colors.dart';
@@ -10,6 +12,7 @@ import 'package:dishflow_delivery/core/theme/app_text_styles.dart';
 import 'package:dishflow_delivery/core/utils/map_marker_factory.dart';
 import 'package:dishflow_delivery/features/orders/domain/utils/order_location_resolver.dart';
 import 'package:dishflow_delivery/features/orders/domain/utils/order_route_resolver.dart';
+import 'package:dishflow_delivery/features/orders/presentation/widgets/route_directions_sheet.dart';
 
 /// Map that follows the selected order: driver + customer pins, the driving
 /// route between them, and the live ETA.
@@ -282,6 +285,62 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
     });
   }
 
+  void _showDirections() {
+    final DeliveryRoute? route = _route;
+    if (route == null) {
+      return;
+    }
+    RouteDirectionsSheet.show(
+      context,
+      route: route,
+      onNavigate: () {
+        Navigator.of(context).pop();
+        unawaited(_openExternalNavigation());
+      },
+    );
+  }
+
+  /// Hands the customer's coordinates to Google Maps for real turn-by-turn.
+  ///
+  /// In-app navigation is deliberately out of scope: the map shows the route and
+  /// the steps, the phone's navigator does the voice guidance.
+  Future<void> _openExternalNavigation() async {
+    final LatLng? customer = _customer;
+    if (customer == null) {
+      return;
+    }
+
+    final String target = '${customer.latitude},${customer.longitude}';
+    // Android's navigation intent first, then the cross-platform web fallback.
+    final List<Uri> candidates = <Uri>[
+      Uri.parse('google.navigation:q=$target&mode=d'),
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$target'
+        '&travelmode=driving&dir_action=navigate',
+      ),
+    ];
+
+    for (final Uri uri in candidates) {
+      try {
+        if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          return;
+        }
+      } on PlatformException {
+        // Try the next candidate.
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.mapNavigateFailed),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
   Future<void> _fitCamera() async {
     final GoogleMapController? controller = _controller;
     final LatLng? customer = _customer;
@@ -442,7 +501,12 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
               if (_customer != null && (_route != null || _routeLoading))
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: _EtaCard(route: _route, loading: _routeLoading),
+                  child: _EtaCard(
+                    route: _route,
+                    loading: _routeLoading,
+                    onShowSteps: _showDirections,
+                    onNavigate: _openExternalNavigation,
+                  ),
                 ),
             ],
           ),
@@ -454,10 +518,17 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
 
 /// "12 min · 4.3 km" summary for the driver → customer leg.
 class _EtaCard extends StatelessWidget {
-  const _EtaCard({required this.route, required this.loading});
+  const _EtaCard({
+    required this.route,
+    required this.loading,
+    required this.onShowSteps,
+    required this.onNavigate,
+  });
 
   final DeliveryRoute? route;
   final bool loading;
+  final VoidCallback onShowSteps;
+  final Future<void> Function() onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -549,6 +620,27 @@ class _EtaCard extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
+          // Steps list — only meaningful for a real road route.
+          if (route.hasSteps)
+            IconButton(
+              onPressed: onShowSteps,
+              tooltip: l10n.mapDirectionsTitle,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                Icons.list_alt_rounded,
+                color: AppColors.brandPrimary,
+              ),
+            ),
+          // Voice guidance always available — it is the phone's navigator.
+          IconButton(
+            onPressed: () => onNavigate(),
+            tooltip: l10n.mapNavigate,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              Icons.navigation_rounded,
+              color: AppColors.brandPrimary,
+            ),
+          ),
         ],
       ),
     );

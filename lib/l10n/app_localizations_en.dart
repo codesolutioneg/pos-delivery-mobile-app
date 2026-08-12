@@ -293,4 +293,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapRouteEstimateTag => 'approx.';
+
+  @override
+  String get mapDirectionsTitle => 'Directions';
+
+  @override
+  String mapDirectionsSteps(int count) {
+    return '$count steps';
+  }
+
+  @override
+  String get mapDirectionsUnavailable =>
+      'Step-by-step directions need a real route from Google — only the estimate is available right now.';
+
+  @override
+  String get mapDirectionsArrive => 'Arrive at the customer';
+
+  @override
+  String get mapNavigate => 'Navigate';
+
+  @override
+  String get mapNavigateFailed => 'Could not open Google Maps for navigation.';
 }
