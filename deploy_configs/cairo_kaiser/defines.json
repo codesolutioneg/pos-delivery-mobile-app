@@ -1,0 +1,8 @@
+{
+  "BASE_URL": "https://api.dishflow.code-solution.org/api",
+  "BRAND_ID": "cairo_kaiser",
+  "BRAND_NAME": "Cairo Kaiser",
+  "RESTAURANT_KEY": "REPLACE_WITH_CAIRO_KAISER_RESTAURANT_KEY",
+  "PRIMARY_COLOR": 4280379774,
+  "APP_ID": "org.codesolution.cairokaiser_delivery"
+}

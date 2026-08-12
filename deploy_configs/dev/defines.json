@@ -1,0 +1,8 @@
+{
+  "BASE_URL": "https://api.dishflow.code-solution.org/api",
+  "BRAND_ID": "dev",
+  "BRAND_NAME": "DishFlow Delivery",
+  "RESTAURANT_KEY": "dk_demo_dev_restaurant_key_000000000000000000003",
+  "PRIMARY_COLOR": 4278230496,
+  "APP_ID": "org.codesolution.dishflow_delivery"
+}

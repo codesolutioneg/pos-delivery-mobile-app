@@ -1,0 +1,141 @@
+{
+  "@@locale": "ar",
+  "appTitle": "توصيل {brand}",
+  "@appTitle": {
+    "placeholders": {
+      "brand": { "type": "String" }
+    }
+  },
+  "navHome": "الرئيسية",
+  "navOrders": "الطلبات",
+  "navWallet": "المحفظة",
+  "navProfile": "حسابي",
+  "language": "اللغة",
+  "languageArabic": "العربية",
+  "languageEnglish": "English",
+  "loginTitle": "تسجيل دخول السائق",
+  "loginSubtitle": "سجّل الدخول باسم المستخدم وكلمة المرور من نقطة البيع",
+  "usernameLabel": "اسم المستخدم / البريد",
+  "usernameHint": "أدخل اسم المستخدم",
+  "passwordLabel": "كلمة المرور",
+  "passwordHint": "أدخل كلمة المرور",
+  "loginButton": "تسجيل الدخول",
+  "splashTagline": "في الطريق إلى عميلك",
+  "logout": "تسجيل الخروج",
+  "driverId": "معرّف السائق",
+  "username": "اسم المستخدم",
+  "phone": "الموبايل",
+  "phoneNotSet": "— (غير مسجّل في نقطة البيع)",
+  "phoneHintProfile": "رقم الموبايل يجيء من كارت السائق في نقطة البيع. لو فاضي، أضفه هناك ثم سجّل الدخول مرة أخرى.",
+  "waitingDispatch": "في انتظار تعيين طلب…",
+  "waitingDispatchHint": "الطلبات المعيّنة من نقطة البيع تظهر هنا.",
+  "restaurantFallback": "المطعم",
+  "pickupLocationFallback": "موقع الاستلام",
+  "deliverTo": "التسليم إلى",
+  "address": "العنوان",
+  "addressMissing": "لا يوجد عنوان",
+  "newOrder": "طلب جديد",
+  "autoRejectSeconds": "رفض تلقائي خلال {seconds} ث",
+  "@autoRejectSeconds": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "customer": "العميل",
+  "items": "الأصناف",
+  "total": "الإجمالي",
+  "collect": "للتحصيل",
+  "status": "الحالة",
+  "payment": "الدفع",
+  "deliveryFee": "رسوم التوصيل",
+  "reject": "رفض",
+  "accept": "قبول",
+  "orderNumber": "طلب {id}",
+  "@orderNumber": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "ctaWaitingCashier": "في انتظار إغلاق الكاشير",
+  "ctaReachedCustomer": "وصلت للعميل — تم التسليم",
+  "ctaReachedRestaurant": "وصلت للمطعم — استلام الطلب",
+  "pickupTitle": "الطلب جاهز للاستلام",
+  "pickupSubtitle": "استلم الطلب وقم بتوصيله إلى العميل.",
+  "itemsAndPickup": "الأصناف ومكان الاستلام",
+  "pickupRoute": "مسار الاستلام والتسليم",
+  "pickedUpStartDelivery": "استلمت الطلب — أبدأ التوصيل",
+  "statusUpdatedOnTheWay": "تم تحديث الحالة: في الطريق",
+  "callCustomer": "اتصال بالعميل",
+  "orderItems": "أصناف الطلب",
+  "markDelivered": "تم التسليم للعميل",
+  "markedDelivered": "تم التسليم — الحالة: delivered",
+  "chatComingSoon": "المحادثة قريباً — استخدم الاتصال حالياً",
+  "ordersActive": "نشطة",
+  "ordersCompleted": "مكتملة",
+  "noOrders": "لا توجد طلبات",
+  "orderNotFound": "الطلب غير موجود",
+  "orderDetails": "تفاصيل الطلب",
+  "goToPickup": "استلمت الطلب — Pickup",
+  "walletBalance": "الرصيد المتاح",
+  "recentActivity": "النشاط الأخير",
+  "noWalletTx": "لا توجد معاملات بعد",
+  "noWalletTxHint": "الأرباح والمدفوعات ستظهر هنا عند ربط واجهة المحفظة.",
+  "mapArea": "منطقة الخريطة",
+  "mapHotRestartHint": "أوقف التطبيق وشغّله من جديد لتحميل خرائط جوجل.",
+  "cannotOpenDialer": "تعذر فتح تطبيق الاتصال",
+  "callFailed": "فشل الاتصال: {error}",
+  "@callFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "paymentCash": "الدفع عند الاستلام",
+  "paymentDash": "—",
+  "retry": "إعادة المحاولة",
+  "chooseProject": "اختر المشروع",
+  "activeOrders": "{count} طلبات نشطة",
+  "@activeOrders": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "orderChip": "{id}",
+  "@orderChip": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "mapYouMarker": "موقعك",
+  "mapCustomerMarker": "العميل",
+  "mapLocatingCustomer": "جاري تحديد موقع العميل…",
+  "mapCustomerNotFound": "تعذر وضع العميل على الخريطة من هذا العنوان.",
+  "mapApproximateHint": "موقع تقريبي من العنوان — تأكد عند الوصول.",
+  "mapRouteToCustomer": "للعميل",
+  "mapRouteCalculating": "جاري حساب المسار…",
+  "mapRouteMinutes": "{minutes} دقيقة",
+  "@mapRouteMinutes": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "mapRouteHoursMinutes": "{hours} س {minutes} د",
+  "@mapRouteHoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "mapRouteDistanceKm": "{km} كم",
+  "@mapRouteDistanceKm": {
+    "placeholders": {
+      "km": { "type": "String" }
+    }
+  },
+  "mapRouteDistanceMeters": "{meters} م",
+  "@mapRouteDistanceMeters": {
+    "placeholders": {
+      "meters": { "type": "int" }
+    }
+  },
+  "mapRouteEstimateTag": "تقريبي"
+}

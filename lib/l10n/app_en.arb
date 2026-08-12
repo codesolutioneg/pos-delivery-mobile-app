@@ -1,0 +1,141 @@
+{
+  "@@locale": "en",
+  "appTitle": "{brand} Delivery",
+  "@appTitle": {
+    "placeholders": {
+      "brand": { "type": "String" }
+    }
+  },
+  "navHome": "Home",
+  "navOrders": "Orders",
+  "navWallet": "Wallet",
+  "navProfile": "Profile",
+  "language": "Language",
+  "languageArabic": "العربية",
+  "languageEnglish": "English",
+  "loginTitle": "Driver Login",
+  "loginSubtitle": "Sign in with the username & password from POS",
+  "usernameLabel": "Username / Email",
+  "usernameHint": "Enter username",
+  "passwordLabel": "Password",
+  "passwordHint": "Enter password",
+  "loginButton": "Log in",
+  "splashTagline": "On the way to your customer",
+  "logout": "Log out",
+  "driverId": "Driver ID",
+  "username": "Username",
+  "phone": "Phone",
+  "phoneNotSet": "— (not set in POS)",
+  "phoneHintProfile": "Phone comes from the driver card in POS. If empty, add it there and log in again.",
+  "waitingDispatch": "Waiting for dispatch…",
+  "waitingDispatchHint": "Assigned orders from POS appear here.",
+  "restaurantFallback": "Restaurant",
+  "pickupLocationFallback": "Pickup location",
+  "deliverTo": "Deliver to",
+  "address": "Address",
+  "addressMissing": "No address provided",
+  "newOrder": "New order",
+  "autoRejectSeconds": "Auto-reject {seconds} s",
+  "@autoRejectSeconds": {
+    "placeholders": {
+      "seconds": { "type": "int" }
+    }
+  },
+  "customer": "Customer",
+  "items": "Items",
+  "total": "Total",
+  "collect": "Collect",
+  "status": "Status",
+  "payment": "Payment",
+  "deliveryFee": "Delivery fee",
+  "reject": "Reject",
+  "accept": "Accept",
+  "orderNumber": "Order {id}",
+  "@orderNumber": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "ctaWaitingCashier": "Waiting for cashier close",
+  "ctaReachedCustomer": "Reached customer — Mark delivered",
+  "ctaReachedRestaurant": "Reached restaurant — Pickup",
+  "pickupTitle": "Order ready to pickup",
+  "pickupSubtitle": "Pick up the order and deliver to the customer.",
+  "itemsAndPickup": "Items & pickup",
+  "pickupRoute": "Pickup & drop-off",
+  "pickedUpStartDelivery": "Order received — Start delivery",
+  "statusUpdatedOnTheWay": "Status updated: on the way",
+  "callCustomer": "Call customer",
+  "orderItems": "Order items",
+  "markDelivered": "Delivered to customer",
+  "markedDelivered": "Delivered — status: delivered",
+  "chatComingSoon": "Chat coming soon — use Call for now",
+  "ordersActive": "Active",
+  "ordersCompleted": "Completed",
+  "noOrders": "No orders",
+  "orderNotFound": "Order not found",
+  "orderDetails": "Order details",
+  "goToPickup": "Order received — Pickup",
+  "walletBalance": "Available balance",
+  "recentActivity": "Recent activity",
+  "noWalletTx": "No wallet transactions yet",
+  "noWalletTxHint": "Earnings and payouts will show here when the wallet API is connected.",
+  "mapArea": "Map area",
+  "mapHotRestartHint": "Stop the app & Run again (full rebuild) to load Google Maps.",
+  "cannotOpenDialer": "Cannot open dialer",
+  "callFailed": "Call failed: {error}",
+  "@callFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "paymentCash": "Cash on delivery",
+  "paymentDash": "—",
+  "retry": "Retry",
+  "chooseProject": "Choose project",
+  "activeOrders": "{count} active orders",
+  "@activeOrders": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "orderChip": "{id}",
+  "@orderChip": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+  "mapYouMarker": "You",
+  "mapCustomerMarker": "Customer",
+  "mapLocatingCustomer": "Finding customer location…",
+  "mapCustomerNotFound": "Could not place customer on the map from this address.",
+  "mapApproximateHint": "Approximate location from address — confirm on arrival.",
+  "mapRouteToCustomer": "To the customer",
+  "mapRouteCalculating": "Calculating route…",
+  "mapRouteMinutes": "{minutes} min",
+  "@mapRouteMinutes": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "mapRouteHoursMinutes": "{hours} h {minutes} min",
+  "@mapRouteHoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "mapRouteDistanceKm": "{km} km",
+  "@mapRouteDistanceKm": {
+    "placeholders": {
+      "km": { "type": "String" }
+    }
+  },
+  "mapRouteDistanceMeters": "{meters} m",
+  "@mapRouteDistanceMeters": {
+    "placeholders": {
+      "meters": { "type": "int" }
+    }
+  },
+  "mapRouteEstimateTag": "approx."
+}

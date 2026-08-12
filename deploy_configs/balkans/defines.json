@@ -1,0 +1,8 @@
+{
+  "BASE_URL": "https://api.dishflow.code-solution.org/api",
+  "BRAND_ID": "balkans",
+  "BRAND_NAME": "Balkans",
+  "RESTAURANT_KEY": "dk_demo_balkans_restaurant_key_0000000000000001",
+  "PRIMARY_COLOR": 4294933173,
+  "APP_ID": "org.codesolution.balkans_delivery"
+}
