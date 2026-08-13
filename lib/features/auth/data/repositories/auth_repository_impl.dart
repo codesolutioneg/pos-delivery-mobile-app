@@ -42,7 +42,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> logout() async {
     try {
-      await _remote.clearSession();
+      await _remote.logout();
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

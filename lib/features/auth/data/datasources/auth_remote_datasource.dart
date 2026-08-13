@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/driver_auth_routes.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../domain/entities/driver_entity.dart';
 
@@ -49,7 +50,11 @@ class AuthRemoteDataSource {
     );
   }
 
-  Future<void> _persist(DriverEntity driver, String accessToken) async {
+  Future<void> _persist(
+    DriverEntity driver,
+    String accessToken, {
+    String? refreshToken,
+  }) async {
     await _storage.write(key: StorageKeys.driverId, value: driver.id);
     await _storage.write(key: StorageKeys.driverName, value: driver.name);
     await _storage.write(
@@ -64,6 +69,9 @@ class AuthRemoteDataSource {
       await _storage.write(key: StorageKeys.branchId, value: driver.branchId);
     }
     await _storage.write(key: StorageKeys.authToken, value: accessToken);
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _storage.write(key: StorageKeys.refreshToken, value: refreshToken);
+    }
   }
 
   Exception _mapDio(DioException e) {
@@ -97,7 +105,7 @@ class AuthRemoteDataSource {
     try {
       await _ensureAnonAuth();
       final res = await _dio.post<Map<String, dynamic>>(
-        '/drivers/login',
+        DriverAuthRoutes.login,
         data: {'username': userKey, 'password': password},
       );
       final data = res.data?['data'];
@@ -105,6 +113,7 @@ class AuthRemoteDataSource {
         throw const ServerException('Login failed. Please try again.');
       }
       final token = (data['accessToken'] ?? '').toString();
+      final refresh = (data['refreshToken'] ?? '').toString();
       final driverJson = data['driver'];
       if (token.isEmpty || driverJson is! Map<String, dynamic>) {
         throw const ServerException('Login failed. Please try again.');
@@ -113,7 +122,7 @@ class AuthRemoteDataSource {
       if (driver.id.isEmpty) {
         throw const ServerException('Driver profile is missing a Firebase id.');
       }
-      await _persist(driver, token);
+      await _persist(driver, token, refreshToken: refresh);
       return driver;
     } on AuthException {
       rethrow;
@@ -145,7 +154,7 @@ class AuthRemoteDataSource {
     }
 
     try {
-      final res = await _dio.get<Map<String, dynamic>>('/drivers/me');
+      final res = await _dio.get<Map<String, dynamic>>(DriverAuthRoutes.me);
       final data = res.data?['data'];
       if (data is Map<String, dynamic>) {
         final driver = _entityFromApi(data);
@@ -167,8 +176,24 @@ class AuthRemoteDataSource {
     );
   }
 
+  Future<void> logout() async {
+    final refresh = await _storage.read(key: StorageKeys.refreshToken);
+    if (refresh != null && refresh.isNotEmpty) {
+      try {
+        await _dio.post<Map<String, dynamic>>(
+          DriverAuthRoutes.logout,
+          data: {'refreshToken': refresh},
+        );
+      } catch (_) {
+        // Local sign-out still proceeds if the API is unreachable.
+      }
+    }
+    await clearSession();
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: StorageKeys.authToken);
+    await _storage.delete(key: StorageKeys.refreshToken);
     await _storage.delete(key: StorageKeys.firebaseCustomToken);
     await _storage.delete(key: StorageKeys.driverId);
     await _storage.delete(key: StorageKeys.driverName);
