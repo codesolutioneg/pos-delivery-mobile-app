@@ -16,11 +16,11 @@
 
 | | |
 |---|---|
-| **Last updated** | `2026-08-13` (login/logout routes probed against DishFlow API) |
+| **Last updated** | `2026-08-13` (restaurant key resolved per branch at runtime) |
 | **Project** | DishFlow Delivery — white-label Flutter **driver** app (Phase 4). One codebase, one brand per build. |
 | **Version control** | ✅ git — `main` → `origin` = [`YasserIbrahem1997/delevary-app-dishflow`](https://github.com/YasserIbrahem1997/delevary-app-dishflow). Owner's convention (same as `../pos_test`): work on `main`, push fast-forward, never force-push. |
 | **Analyzer** | ✅ `flutter analyze` clean — **0 issues**, whole project (2026-08-12) |
-| **Tests** | ✅ `flutter test` — 9/9 pass (`order_route_resolver_test.dart` 8, `widget_test.dart` 1) |
+| **Tests** | ✅ `flutter test` — 20/20 pass (route resolver 8, restaurant key 8, auth routes 3, widget 1) |
 | **Debug build** | ✅ `flutter build apk --debug --dart-define-from-file=deploy_configs/dev/defines.json` |
 | **Test device** | `SM A556E` (Android 16 / API 36), attached over USB |
 | **Flutter deps of note** | `geocoding: ^5.0.0` (**breaking API — see Architecture**), `google_maps_flutter: ^2.10.1`, `geolocator: ^13.0.1`, `flutter_bloc`, `go_router`, `get_it`, `dio`, `fpdart`. Dev: `flutter_launcher_icons`, `flutter_native_splash` (added 2026-08-11). |
@@ -57,6 +57,7 @@ Legend: ✅ done & verified · 🟡 in progress / unverified · 🔴 blocked · 
 
 | What | Status | Notes |
 |---|---|---|
+| **Restaurant key follows the branch at runtime** | ✅ | `AppConfig.restaurantKey` is a **compile-time** define while the branch is picked at **runtime**, so running on `odc-chat` with the balkans key made `POST /drivers/login` search the wrong restaurant and answer `UNAUTHORIZED — Invalid username or password` — indistinguishable from a wrong password. [`RestaurantKeyProvider`](../lib/core/network/restaurant_key_provider.dart) now resolves the key from `POST /tenant/firebase-key` using `Firebase.app().options.projectId`, cached **per project id** (memory + SharedPreferences) because that endpoint is rate-limited to 10 req / 15 min per IP. [`RestaurantKeyInterceptor`](../lib/core/network/restaurant_key_interceptor.dart) stamps the header per request (never on `BaseOptions`) and retries once on `RESTAURANT_KEY_INVALID`. Proven against the live API: the same credentials succeed under the Dev key and fail under the balkans key. |
 | **Driver status write must never create a sale** | ✅ | `updateStatus` mirrored onto `sales/{orderId}` with `set(merge:true)`, which **creates** a missing doc. A driver can now be assigned an order while it is still *suspended* in the POS (no sale yet), so that call would write a stub holding only `delivery_status` — and the POS collision guard (`SaleDocId.isSameOrder`) reads a stub with no `posOrderId`/`userId` as *a different order*, filing the real sale under a collision-safe id at checkout. Changed to `update()`, which throws on a missing doc and is swallowed by the existing catch: the sale is touched only once it is real. |
 | **Backend JWT login + logout routes** | ✅ | Flutter paths = `https://api.dishflow.code-solution.org/api/v1/drivers/{login,me,logout}`. Live probe 2026-08-13: login 200 + access/refresh, `GET /me` 200, `POST /logout` 200; Balkans key + Dev driver = 401. App now stores `refreshToken` and calls logout on sign-out. Refresh-on-401 still not implemented. |
 | **GPS writer to `driver_locations/{uid}`** | 🟡 | `FirestoreTrackingRepository` wired in DI. Not yet verified on device. |
@@ -95,6 +96,7 @@ Legend: ✅ done & verified · 🟡 in progress / unverified · 🔴 blocked · 
 
 | Date | Note | Why |
 |---|---|---|
+| 2026-08-13 | **The restaurant key must never be a compile-time constant.** The branch is chosen at runtime (debug picker / baked `firebase_options`), so a baked key can belong to another restaurant — and the failure surfaces as “Invalid username or password”, which sends you hunting a credential bug that does not exist. Resolve it from the Firebase project id instead. The compile-time value is kept **only** as a last-resort fallback and logs loudly when used. Never put `X-Restaurant-Key` back on `BaseOptions`: locked by `test/restaurant_key_test.dart`. | Owner hit “Invalid user” on a driver whose credentials were correct; the app was querying the balkans restaurant while the POS had created him under Dev. |
 | 2026-08-12 | **The driver app may update a sale, never create one.** Any write to `sales/{id}` from here must be `update()`, not `set(..., merge: true)`. The POS builds sale doc ids deterministically and guards them: a document that exists but lacks `posOrderId`/`userId`/`odooOrderId` is treated as a *different* order, so checkout would file the real sale under `{docId}__{orderId}` and log a collision. A stub created by this app is exactly that shape. Pairs with the POS change on branch `feat/suspended-order-driver-mirror` (pos_test `89644b5`), which mirrors a **suspended** order to `drivers/{id}/orders` using the future sale doc id — so orders now reach the driver before any sale exists. | Owner wanted the driver to see an order as soon as a driver is assigned to a suspended card; that made a pre-existing latent bug reachable. |
 | 2026-08-13 | **Logout is now wired to `POST /drivers/logout`.** Login already hit DishFlow; logout had been local-only. Refresh token is stored for that call. **Refresh-on-401 is still not done** — access still dies after 15 minutes unless the driver logs in again. | Owner asked whether login/logout are our backend and to verify the Flutter routes. |
 | 2026-08-12 | ~~**`refreshToken` is stored nowhere — known gap, not done.**~~ **Partial 2026-08-13:** refresh token is stored and sent on logout. There is still no `/drivers/refresh` call, so a driver's session dies mid-shift when access (15m) expires. | Recorded so the next agent implements refresh instead of assuming login is finished. |
