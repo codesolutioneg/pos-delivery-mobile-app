@@ -182,6 +182,52 @@ class FirestoreOrdersRepository implements OrdersRepository {
     );
   }
 
+  /// Reports the driver's stage on the customer's own order document.
+  ///
+  /// `ecommerce_orders/{id}` is the only document the customer app can find by
+  /// id — it created it. Everything else in the POS pipeline
+  /// (`suspended_orders`, `sales`) carries no link back to the store order, so
+  /// without this the customer sees nothing move between "Received" and the
+  /// cashier closing the sale.
+  ///
+  /// The id travels on the driver's own order document (`ecommerceOrderId`),
+  /// written by the POS when the driver is assigned. A POS-rung delivery order
+  /// has no such id and is skipped — nothing is created here.
+  Future<void> _mirrorOntoStoreOrder({
+    required String driverUid,
+    required String orderId,
+    required String status,
+  }) async {
+    const stages = <String, String>{
+      'on_the_way': 'on_the_way',
+      'picked_up': 'on_the_way',
+      'in_transit': 'on_the_way',
+      'shipped': 'on_the_way',
+      'delivered': 'delivered',
+      'driver_delivered': 'delivered',
+    };
+    final storeStatus = stages[status];
+    if (storeStatus == null) return;
+
+    try {
+      final snap = await _orders(driverUid).doc(orderId).get();
+      final ecommerceOrderId =
+          (snap.data()?['ecommerceOrderId'] ?? '').toString().trim();
+      if (ecommerceOrderId.isEmpty) return;
+
+      // update(), never set(merge:true) — same rule as the sales write above:
+      // this app reports on documents it did not create and must never invent
+      // a store order.
+      await _db.collection('ecommerce_orders').doc(ecommerceOrderId).update({
+        'status': storeStatus,
+        'statusUpdatedAt': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {
+      // Non-fatal: not a store order, doc gone, or rules block the write. The
+      // driver's own status change already succeeded.
+    }
+  }
+
   @override
   Future<Either<Failure, void>> updateStatus({
     required String driverUid,
@@ -220,6 +266,12 @@ class FirestoreOrdersRepository implements OrdersRepository {
       } catch (_) {
         // Non-fatal: no sale yet, different doc id, or rules block the write.
       }
+
+      await _mirrorOntoStoreOrder(
+        driverUid: driverUid,
+        orderId: orderId,
+        status: status,
+      );
 
       return const Right(null);
     } on FirebaseException catch (e) {
