@@ -36,6 +36,24 @@ if [[ -f "$PLIST" ]]; then
   perl -0pi -e "s|(<key>CFBundleDisplayName</key>\s*<string>)[^<]*|\${1}$BRAND_NAME|" "$PLIST"
 fi
 
+# iOS product bundle identifier (Runner target only — skip RunnerTests)
+PBXPROJ="$ROOT/ios/Runner.xcodeproj/project.pbxproj"
+if [[ -f "$PBXPROJ" ]]; then
+  python3 - <<PY
+from pathlib import Path
+path = Path(r"""$PBXPROJ""")
+lines = []
+for line in path.read_text().splitlines(True):
+    if "PRODUCT_BUNDLE_IDENTIFIER" in line and "RunnerTests" not in line:
+        indent = line[: len(line) - len(line.lstrip())]
+        lines.append(f"{indent}PRODUCT_BUNDLE_IDENTIFIER = $APP_ID;\n")
+    else:
+        lines.append(line)
+path.write_text("".join(lines))
+print(f"iOS bundle id set to $APP_ID")
+PY
+fi
+
 ACTIVE="$ROOT/brand_assets/active"
 mkdir -p "$ACTIVE"
 
@@ -61,5 +79,11 @@ cd "$ROOT"
 flutter pub get
 [[ -f "$ACTIVE/icon.png" ]] && dart run flutter_launcher_icons
 [[ -f "$ACTIVE/splash.png" ]] && dart run flutter_native_splash:create
+
+# Keep the native launch image fully visible (not clipped) on every iPhone size.
+STORYBOARD="$ROOT/ios/Runner/Base.lproj/LaunchScreen.storyboard"
+if [[ -f "$STORYBOARD" ]]; then
+  perl -pi -e 's/contentMode="center"/contentMode="scaleAspectFit"/g' "$STORYBOARD"
+fi
 
 echo "Brand applied. Run: flutter run --dart-define-from-file=deploy_configs/$BRAND/defines.json"

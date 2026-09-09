@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dishflow_delivery/core/l10n/l10n_x.dart';
+import 'package:dishflow_delivery/core/location/app_map_tiles.dart';
 import 'package:dishflow_delivery/core/theme/app_colors.dart';
 import 'package:dishflow_delivery/core/theme/app_text_styles.dart';
-import 'package:dishflow_delivery/core/utils/map_marker_factory.dart';
 import 'package:dishflow_delivery/features/orders/domain/utils/order_location_resolver.dart';
 import 'package:dishflow_delivery/features/orders/domain/utils/order_route_resolver.dart';
 import 'package:dishflow_delivery/features/orders/presentation/widgets/route_directions_sheet.dart';
@@ -43,8 +44,9 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
   static const double _rerouteDistanceMeters = 150;
   static const Duration _rerouteInterval = Duration(seconds: 45);
 
-  GoogleMapController? _controller;
+  final MapController _map = MapController();
   StreamSubscription<Position>? _positionSub;
+  bool _mapReady = false;
 
   LatLng _driver = _fallback;
   LatLng? _customer;
@@ -59,20 +61,11 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
   LatLng? _routedFrom;
   DateTime? _routedAt;
 
-  BitmapDescriptor? _driverIcon;
-  BitmapDescriptor? _customerIcon;
-
   @override
   void initState() {
     super.initState();
     unawaited(_initDriverLocation());
     unawaited(_resolveCustomer());
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    unawaited(_loadMarkerIcons());
   }
 
   @override
@@ -91,32 +84,8 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
   @override
   void dispose() {
     unawaited(_positionSub?.cancel());
-    _controller?.dispose();
+    _map.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMarkerIcons() async {
-    if (_driverIcon != null && _customerIcon != null) {
-      return;
-    }
-    final double ratio = MediaQuery.devicePixelRatioOf(context);
-    final BitmapDescriptor driver = await MapMarkerFactory.pin(
-      icon: Icons.delivery_dining_rounded,
-      color: AppColors.brandPrimary,
-      devicePixelRatio: ratio,
-    );
-    final BitmapDescriptor customer = await MapMarkerFactory.pin(
-      icon: Icons.person_rounded,
-      color: _customerPinColor,
-      devicePixelRatio: ratio,
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _driverIcon = driver;
-      _customerIcon = customer;
-    });
   }
 
   static const Color _customerPinColor = Color(0xFFF2711C);
@@ -342,102 +311,74 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
   }
 
   Future<void> _fitCamera() async {
-    final GoogleMapController? controller = _controller;
+    if (!_mapReady) {
+      return;
+    }
+
     final LatLng? customer = _customer;
-    if (controller == null) {
-      return;
-    }
-
     if (customer == null) {
-      await controller.animateCamera(CameraUpdate.newLatLngZoom(_driver, 14));
+      _map.move(_driver, 14);
       return;
     }
 
-    final LatLngBounds bounds = LatLngBounds(
-      southwest: LatLng(
-        _driver.latitude < customer.latitude
-            ? _driver.latitude
-            : customer.latitude,
-        _driver.longitude < customer.longitude
-            ? _driver.longitude
-            : customer.longitude,
-      ),
-      northeast: LatLng(
-        _driver.latitude > customer.latitude
-            ? _driver.latitude
-            : customer.latitude,
-        _driver.longitude > customer.longitude
-            ? _driver.longitude
-            : customer.longitude,
+    _map.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds(_driver, customer),
+        padding: const EdgeInsets.all(72),
+        maxZoom: 16,
       ),
     );
-
-    try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 72),
-      );
-    } on Exception {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(customer, 15),
-      );
-    }
   }
 
-  Set<Marker> get _markers {
-    final Set<Marker> markers = <Marker>{
+  List<Marker> get _markers {
+    final List<Marker> markers = <Marker>[
       Marker(
-        markerId: const MarkerId('driver'),
-        position: _driver,
-        anchor: const Offset(0.5, 1),
-        infoWindow: InfoWindow(title: context.l10n.mapYouMarker),
-        icon: _driverIcon ??
-            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        point: _driver,
+        width: 44,
+        height: 44,
+        alignment: Alignment.bottomCenter,
+        child: Icon(
+          Icons.delivery_dining_rounded,
+          color: AppColors.brandPrimary,
+          size: 40,
+        ),
       ),
-    };
+    ];
 
     final LatLng? customer = _customer;
     if (customer != null) {
       markers.add(
         Marker(
-          markerId: MarkerId('customer_${widget.focusOrderId ?? 'x'}'),
-          position: customer,
-          anchor: const Offset(0.5, 1),
-          infoWindow: InfoWindow(
-            title: context.l10n.mapCustomerMarker,
-            snippet: _customerApproximate
-                ? context.l10n.mapApproximateHint
-                : null,
+          point: customer,
+          width: 44,
+          height: 44,
+          alignment: Alignment.bottomCenter,
+          child: const Icon(
+            Icons.person_pin_circle_rounded,
+            color: _customerPinColor,
+            size: 40,
           ),
-          icon: _customerIcon ??
-              BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueOrange,
-              ),
         ),
       );
     }
     return markers;
   }
 
-  Set<Polyline> get _polylines {
+  List<Polyline> get _polylines {
     final DeliveryRoute? route = _route;
     if (route == null || route.points.length < 2) {
-      return const <Polyline>{};
+      return const <Polyline>[];
     }
-    return <Polyline>{
+    return <Polyline>[
       Polyline(
-        polylineId: const PolylineId('driver_to_customer'),
         points: route.points,
         color: AppColors.brandPrimary,
-        width: 5,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-        // A dashed line signals "this is not the real road path".
-        patterns: route.isEstimate
-            ? <PatternItem>[PatternItem.dash(24), PatternItem.gap(14)]
-            : const <PatternItem>[],
-        geodesic: route.isEstimate,
+        strokeWidth: 5,
+        pattern: route.isEstimate
+            ? StrokePattern.dashed(segments: const [24, 14])
+            : const StrokePattern.solid(),
       ),
-    };
+    ];
   }
 
   @override
@@ -446,17 +387,47 @@ class _DeliveryMapViewState extends State<DeliveryMapView> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: _driver, zoom: 13),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          zoomControlsEnabled: true,
-          markers: _markers,
-          polylines: _polylines,
-          onMapCreated: (GoogleMapController controller) {
-            _controller = controller;
-            unawaited(_fitCamera());
-          },
+        FlutterMap(
+          mapController: _map,
+          options: MapOptions(
+            initialCenter: _driver,
+            initialZoom: 13,
+            onMapReady: () {
+              _mapReady = true;
+              unawaited(_fitCamera());
+            },
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.pinchZoom |
+                  InteractiveFlag.drag |
+                  InteractiveFlag.doubleTapZoom,
+            ),
+          ),
+          children: [
+            AppMapTiles.layer(),
+            if (_polylines.isNotEmpty) PolylineLayer(polylines: _polylines),
+            MarkerLayer(markers: _markers),
+          ],
+        ),
+        Positioned(
+          left: 12,
+          bottom: 12,
+          child: Material(
+            elevation: 2,
+            color: AppColors.surface,
+            shape: const CircleBorder(),
+            child: IconButton(
+              tooltip: l10n.mapYouMarker,
+              onPressed: () {
+                if (_mapReady) {
+                  _map.move(_driver, 15);
+                }
+              },
+              icon: Icon(
+                Icons.my_location,
+                color: AppColors.brandPrimary,
+              ),
+            ),
+          ),
         ),
         Positioned(
           top: 12,

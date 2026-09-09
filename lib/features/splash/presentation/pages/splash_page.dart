@@ -34,7 +34,7 @@ class _SplashPageState extends State<SplashPage>
 
   late final Animation<double> _logoScale = CurvedAnimation(
     parent: _intro,
-    curve: const Interval(0, 0.62, curve: Curves.elasticOut),
+    curve: const Interval(0, 0.62, curve: Curves.easeOutBack),
   );
 
   late final Animation<double> _logoFade = CurvedAnimation(
@@ -77,16 +77,19 @@ class _SplashPageState extends State<SplashPage>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: 200,
+                height: 220,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    _PulseRings(animation: _loop),
+                    _PulseRings(
+                      animation: _loop,
+                      badgeDiameter: 152,
+                    ),
                     FadeTransition(
                       opacity: _logoFade,
                       child: ScaleTransition(
                         scale: _logoScale,
-                        child: const BrandLogoBadge(diameter: 132),
+                        child: const BrandLogoBadge(diameter: 152),
                       ),
                     ),
                   ],
@@ -128,9 +131,13 @@ class _SplashPageState extends State<SplashPage>
 
 /// Two rings expanding outward from the logo, staggered half a cycle apart.
 class _PulseRings extends StatelessWidget {
-  const _PulseRings({required this.animation});
+  const _PulseRings({
+    required this.animation,
+    required this.badgeDiameter,
+  });
 
   final Animation<double> animation;
+  final double badgeDiameter;
 
   @override
   Widget build(BuildContext context) {
@@ -150,11 +157,12 @@ class _PulseRings extends StatelessWidget {
 
   Widget _ring(double t) {
     final eased = Curves.easeOut.transform(t);
+    final size = badgeDiameter + eased * 72;
     return Opacity(
       opacity: (1 - eased) * 0.35,
       child: Container(
-        width: 132 + eased * 68,
-        height: 132 + eased * 68,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.brandPrimary, width: 2),

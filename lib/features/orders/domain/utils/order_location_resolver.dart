@@ -1,5 +1,5 @@
 import 'package:geocoding/geocoding.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 /// Resolves a customer pin for the map: exact coords, or approximate geocode.
 class OrderLocationResolver {

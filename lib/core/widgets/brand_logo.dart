@@ -39,7 +39,7 @@ class BrandLogoBadge extends StatelessWidget {
   const BrandLogoBadge({
     super.key,
     this.diameter = 132,
-    this.logoScale = 0.66,
+    this.logoScale = 0.58,
   });
 
   final double diameter;
@@ -47,10 +47,12 @@ class BrandLogoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = diameter * logoScale;
     return Container(
       width: diameter,
       height: diameter,
       alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surface,
         shape: BoxShape.circle,
@@ -62,7 +64,7 @@ class BrandLogoBadge extends StatelessWidget {
           ),
         ],
       ),
-      child: BrandLogo(size: diameter * logoScale),
+      child: BrandLogo(size: logoSize),
     );
   }
 }

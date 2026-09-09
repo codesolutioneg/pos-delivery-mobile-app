@@ -1,4 +1,5 @@
 // DEV-ONLY Firebase project switcher (same client list as POS).
+// Debug `flutter run` only — TestFlight/release is Balkans (baked firebase_options).
 // ignore_for_file: depend_on_referenced_packages, library_prefixes
 
 import 'package:firebase_core/firebase_core.dart';

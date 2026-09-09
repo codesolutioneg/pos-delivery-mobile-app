@@ -1,7 +1,7 @@
 import 'dart:io' show exit;
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -15,7 +15,7 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_text_styles.dart';
 import 'firebase_options.dart';
 
-/// Boots Firebase (with debug project picker) then mounts the real app.
+/// Boots Firebase (debug: branch picker; TestFlight/release: Balkans only).
 class DeliveryBootstrap extends StatefulWidget {
   const DeliveryBootstrap({super.key});
 

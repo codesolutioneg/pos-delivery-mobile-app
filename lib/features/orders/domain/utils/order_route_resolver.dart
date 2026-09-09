@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/android_app_identity.dart';

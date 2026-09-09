@@ -1,6 +1,6 @@
 import 'package:dishflow_delivery/features/orders/domain/utils/order_route_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 void main() {
   group('decodePolyline', () {
